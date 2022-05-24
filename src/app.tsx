@@ -23,7 +23,8 @@ const main = async () => {
   const state = new State();
   const dev = new Device(port, state.deviceOutput);
 
-  state.addEventListener("connecting", () => dev.connect());
+  state.addEventListener("connect", () => dev.connect());
+  state.addEventListener("call", (e: CustomEvent) => dev.call(e.detail));
   state.addEventListener("render", () => render(<App {...state.props}/>, appElt));
 
   state.start();

@@ -1,4 +1,4 @@
-import { DeviceCommand, DeviceOutput } from './state';
+import { DeviceCall, DeviceOutput } from './state';
 
 export interface FirmwareVersion {
   protocol: { major: number, minor: number };
@@ -29,6 +29,16 @@ export class Device {
         this.out.deviceCrashed(e);
       }
     })();
+  }
+
+  call(call: DeviceCall): void {
+    switch (call.name) {
+      case "playTone":
+        this.playTone(256, 100);
+        break;
+      default:
+        throw `unimplemented call: ${call.name}`;
+    }
   }
 
   private async readPackets(stream: ReadableStream) {
@@ -62,6 +72,27 @@ export class Device {
         protocol: {major: result[0], minor: result[3]},
         firmware: {major: result[6], minor: result[5]}
       };
+    } catch (e) {
+      this.out.deviceCrashed(e);
+    }
+  }
+
+  private async playTone(hz: number, millis: number): Promise<void> {
+    if (hz < 200 || hz > 14000) throw `frequency out of range: ${hz}`;
+
+    const command = new Uint8Array([
+      0x00, 0x03,
+      hz & 0xff, hz >>> 8,
+      millis & 0xff, millis >>> 8
+    ]);
+
+    try {
+      const result = await this.callCommand(command);
+      if (result.length != 3) throw "unexpected response length";
+      if (result[0] != 0x02) throw "not a response packet";
+      if (result[1] != 0x03) throw "not a response packet to playTone";
+      if (result[2] != 0) throw "got error result";
+      this.out.commandDone();
     } catch (e) {
       this.out.deviceCrashed(e);
     }

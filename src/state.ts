@@ -1,9 +1,12 @@
-export type DeviceCommand = "getFirmwareVersion";
+export interface DeviceCall {
+  kind: "calling",
+  name: "playTone"
+}
 
 export type DeviceState = { kind: "start" }
   | { kind: "connecting" }
   | { kind: "ready" }
-  | { kind: "calling", name: DeviceCommand }
+  | DeviceCall
   | { kind: "closing" }
   | { kind: "closed" }
   | { kind: "gone" }
@@ -17,6 +20,7 @@ export interface AppProps {
   log: string[]
 
   chooseTab: (tab: Tab) => void;
+  playTone: () => void;
 }
 
 export interface DeviceOutput {
@@ -40,6 +44,12 @@ export class State extends EventTarget {
       chooseTab: (tab: Tab) => {
         this.tab = tab;
         this.render();
+      },
+
+      playTone: () => {
+        if (this.state.kind == "ready") {
+          this.stateChanged({kind: "calling", name: "playTone"});
+        }
       }
     }
   }
@@ -65,15 +75,18 @@ export class State extends EventTarget {
     this.stateChanged({kind: "connecting"});
   }
 
-  private stateChanged(state: DeviceState, options?: {message?: any, detail?: any}) {
+  private stateChanged(state: DeviceState, options?: {message?: any}) {
     if (this.state.kind == state.kind) throw "invalid state change";
 
     this.state = state;
     switch (state.kind) {
       case "connecting":
-        this.dispatchEvent(new CustomEvent("connecting"));
+        this.dispatchEvent(new CustomEvent("connect"));
         break;
-
+      case "calling":
+        this.dispatchEvent(new CustomEvent("call", {detail: state}));
+        this.log(`*** calling ${state.name} ***`);
+        return;
     }
 
     const message = options?.message ?? state.kind;
