@@ -23,14 +23,8 @@ const main = async () => {
   const state = new State();
   const dev = new Device(port, state.deviceOutput);
 
-  state.addEventListener("save", () => {
-    const props = state.props;
-    switch (props.deviceState.kind) {
-      case "connecting":
-        dev.connect();
-    }
-    render(<App {...props}/>, appElt);
-  });
+  state.addEventListener("connecting", () => dev.connect());
+  state.addEventListener("render", () => render(<App {...state.props}/>, appElt));
 
   state.start();
 }

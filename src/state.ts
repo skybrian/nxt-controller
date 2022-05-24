@@ -15,11 +15,10 @@ export interface AppProps {
 }
 
 export interface DeviceOutput {
-  deviceOpened(): boolean;
-  sentCommand(name: DeviceCommand): void;
+  commandDone(): void;
   deviceClosed(): void;
   deviceCrashed(message: any): void;
-  pushDeviceOutput(line: string): void;
+  log(line: string): void;
 }
 
 export class State extends EventTarget {
@@ -35,22 +34,16 @@ export class State extends EventTarget {
 
   get deviceOutput(): DeviceOutput {
     return {
-      deviceOpened: (): boolean => {
-        this.stateChanged({kind: "ready"})
-        return true;
-      },
-      sentCommand: (name: DeviceCommand) => {
-        this.stateChanged({kind: "calling", name: name})
-        this.log(`*** called: ${name} ***`)
+      commandDone: () => {
+        this.stateChanged({kind: "ready"});
       },
       deviceClosed: (): void => {
         this.stateChanged({kind: "closed"});
       },
       deviceCrashed: (message: any): void => {
         this.stateChanged({kind: "gone"}, {message: message})
-        this.log(`*** failed: ${message} ***`);
       },
-      pushDeviceOutput: (line: string): void => {
+      log: (line: string): void => {
         this.log(line);
       }
     }
@@ -60,18 +53,27 @@ export class State extends EventTarget {
     this.stateChanged({kind: "connecting"});
   }
 
-  private stateChanged(state: DeviceState, options?: {message?: any}) {
+  private stateChanged(state: DeviceState, options?: {message?: any, detail?: any}) {
+    if (this.state.kind == state.kind) throw "invalid state change";
+
     this.state = state;
+    switch (state.kind) {
+      case "connecting":
+        this.dispatchEvent(new CustomEvent("connecting"));
+        break;
+
+    }
+
     const message = options?.message ?? state.kind;
     this.log(`*** ${message} ***`)
   }
 
   private log(message: string) {
     this.output.push(message);
-    this.save();
+    this.render();
   }
 
-  private save() {
-    this.dispatchEvent(new CustomEvent("save"));
+  private render() {
+    this.dispatchEvent(new CustomEvent("render"));
   }
 }

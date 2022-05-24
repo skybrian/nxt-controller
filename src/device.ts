@@ -20,10 +20,10 @@ export class Device {
           bufferSize: 64,
         });
 
-        if (this.out.deviceOpened()) {
-          this.tasks.push(this.readPackets(this.port.readable));
-          this.tasks.push(this.run());
-        }
+        this.tasks.push(this.readPackets(this.port.readable));
+
+        const versions = await this.getFirmwareVersion();
+        this.out.log(`firmware versions: ${JSON.stringify(versions)}`);
 
       } catch (e) {
         this.out.deviceCrashed(e);
@@ -49,29 +49,31 @@ export class Device {
     }
   }
 
-  private async run() {
-    const versions = await this.getFirmwareVersion();
-    this.out.pushDeviceOutput(`versions: ${JSON.stringify(versions)}`);
-  }
-
   private async getFirmwareVersion(): Promise<FirmwareVersion> {
     const command = new Uint8Array([0x01, 0x88]);
-    const result = await this.callCommand("getFirmwareVersion", command);
-    if (result.length != 7) throw "unexpected response length";
-    if (result[0] != 0x02) throw "not a response packet";
-    if (result[1] != 0x88) throw "not a response packet to getFirmewareVersion";
-    if (result[2] != 0) throw "got error result";
-    return {
-      protocol: {major: result[0], minor: result[3]},
-      firmware: {major: result[6], minor: result[5]}
-    };
+    try {
+      const result = await this.callCommand(command);
+      if (result.length != 7) throw "unexpected response length";
+      if (result[0] != 0x02) throw "not a response packet";
+      if (result[1] != 0x88) throw "not a response packet to getFirmewareVersion";
+      if (result[2] != 0) throw "got error result";
+      this.out.commandDone();
+      return {
+        protocol: {major: result[0], minor: result[3]},
+        firmware: {major: result[6], minor: result[5]}
+      };
+    } catch (e) {
+      this.out.deviceCrashed(e);
+    }
   }
 
-  private async callCommand(name: DeviceCommand, command: Uint8Array): Promise<Uint8Array> {
+  private async callCommand(command: Uint8Array): Promise<Uint8Array> {
     const writer = this.port.writable.getWriter();
-
-    writeBluetoothPacket(command, writer);
-    this.out.sentCommand(name);
+    try {
+      await writeBluetoothPacket(command, writer);
+    } finally {
+      writer.releaseLock();
+    }
 
     return new Promise<Uint8Array>((resolve) => {
       this.gotPacket = (packet) => {
