@@ -1,48 +1,14 @@
 import {h, render} from "preact";
-import {Device, DeviceOutput} from "./device";
-
-const Connect = (props: {onClick: (_) => void}) => {
-  return <button onClick={props.onClick}>Connect</button>
-}
-
-const App = (props: {log: string[]}) => {
-  return <div>
-    {props.log.map((line) => <div>{line}</div>)}
-  </div>
-}
-
-const appElt = document.getElementById("app");
-
-const output = [] as string[];
-
-const log = (message: string) => {
-  output.push(message);
-  render(<App log={output}/>, appElt);
-}
-
-class State implements DeviceOutput {
-  deviceOpened(): boolean {
-    log("*** opened ***");
-    return true;
-  }
-  sentCommand(name: string) {
-    log(`*** called: ${name} ***`)
-  }
-  deviceClosed(): void {
-    log("*** closed ***");
-  }
-  deviceCrashed(message: any): void {
-    log(`*** failed: ${message} ***`);
-  }
-  pushDeviceOutput(line: string): void {
-    log(line);
-  }
-}
+import {Device} from "./device";
+import {State} from "./state";
+import {Connect, App} from "./view";
 
 const main = async () => {
+  const appElt = document.getElementById("app");
+
   const serial = navigator.serial;
   if (!serial) {
-    log("bluetooth API unavailable");
+    render(<div>Web Serial API unavailable</div>, appElt)
     return;
   }
 
@@ -54,8 +20,19 @@ const main = async () => {
     port = await serial.requestPort();
   }
 
-  const dev = new Device(port, new State());
-  dev.start();
+  const state = new State();
+  const dev = new Device(port, state.deviceOutput);
+
+  state.addEventListener("save", () => {
+    const props = state.props;
+    switch (props.deviceState.kind) {
+      case "connecting":
+        dev.connect();
+    }
+    render(<App {...props}/>, appElt);
+  });
+
+  state.start();
 }
 
 main();

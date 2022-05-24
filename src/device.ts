@@ -1,14 +1,8 @@
+import { DeviceCommand, DeviceOutput } from './state';
+
 export interface FirmwareVersion {
   protocol: { major: number, minor: number };
   firmware: { major: number, minor: number };
-}
-
-export interface DeviceOutput {
-  deviceOpened(): boolean;
-  sentCommand(name: string): void;
-  deviceClosed(): void;
-  deviceCrashed(message: any): void;
-  pushDeviceOutput(line: string): void;
 }
 
 export class Device {
@@ -18,7 +12,7 @@ export class Device {
 
   constructor(private port: SerialPort, private out: DeviceOutput) {}
 
-  start(): void {
+  connect(): void {
     (async () => {
       try {
         await this.port.open({
@@ -73,7 +67,7 @@ export class Device {
     };
   }
 
-  private async callCommand(name: string, command: Uint8Array): Promise<Uint8Array> {
+  private async callCommand(name: DeviceCommand, command: Uint8Array): Promise<Uint8Array> {
     const writer = this.port.writable.getWriter();
 
     writeBluetoothPacket(command, writer);
