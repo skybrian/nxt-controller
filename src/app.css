@@ -1,0 +1,53 @@
+@import "purecss";
+
+body {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1em;
+
+  display: flex;
+  flex-direction: column;
+}
+
+#app {
+  flex-grow: 1;
+  height: 50%;
+  width: 100%;
+  padding-bottom: 2em;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.connect-view {
+  font-size: 120%;
+}
+
+.tab-view {
+  flex-grow: 1;
+  height: 50%;
+  margin-top: 1em;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-view-selected {
+  flex-grow: 1;
+  height: 50%;
+  margin-top: 1em;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-row {
+  display: flex;
+}
+
+.right-of-tabs {
+  margin-left: auto;
+}

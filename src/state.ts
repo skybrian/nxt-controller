@@ -9,9 +9,14 @@ export type DeviceState = { kind: "start" }
   | { kind: "gone" }
   ;
 
+export type Tab = "Buttons" | "Log";
+
 export interface AppProps {
   deviceState: DeviceState,
+  tab: Tab,
   log: string[]
+
+  chooseTab: (tab: Tab) => void;
 }
 
 export interface DeviceOutput {
@@ -23,12 +28,19 @@ export interface DeviceOutput {
 
 export class State extends EventTarget {
   private state = { kind: "start" } as DeviceState;
+  private tab = "Log" as Tab;
   private output = [] as string[];
 
   get props(): AppProps {
     return {
       deviceState: this.state,
-      log: this.output
+      tab: this.tab,
+      log: this.output,
+
+      chooseTab: (tab: Tab) => {
+        this.tab = tab;
+        this.render();
+      }
     }
   }
 
