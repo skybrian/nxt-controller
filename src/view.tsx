@@ -12,7 +12,14 @@ export const App = (props: AppProps) => {
   return <TabView labels={["Log", "Buttons"]} selected={props.tab} chooseTab={props.chooseTab} >
     <LogView log={props.log}/>
     <div>
-      <button onClick={props.playTone} disabled={props.deviceState.kind != "ready"}>Play Tone</button>
+      <div>
+        <button onClick={props.playTone} disabled={props.deviceState.kind != "ready"}>Play Tone</button>
+      </div>
+      <div>
+        Motor A:
+          <button onClick={(e) => props.runMotor("a")} disabled={props.deviceState.kind != "ready"}>Run</button>
+          <button onClick={(e) => props.idleMotor("a")} disabled={props.deviceState.kind != "ready"}>Idle</button>
+      </div>
     </div>
   </TabView>
 }

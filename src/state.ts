@@ -1,7 +1,23 @@
-export interface DeviceCall {
+export interface PlayTone {
   kind: "calling",
   name: "playTone"
 }
+
+export type MotorPort = "a" | "b" | "c";
+
+export interface RunMotor {
+  kind: "calling",
+  name: "runMotor",
+  port: MotorPort,
+}
+
+export interface IdleMotor {
+  kind: "calling",
+  name: "idleMotor",
+  port: MotorPort,
+}
+
+export type DeviceCall = PlayTone | RunMotor | IdleMotor;
 
 export type DeviceState = { kind: "start" }
   | { kind: "connecting" }
@@ -21,6 +37,8 @@ export interface AppProps {
 
   chooseTab: (tab: Tab) => void;
   playTone: () => void;
+  runMotor: (port: MotorPort) => void;
+  idleMotor: (port: MotorPort) => void;
 }
 
 export interface DeviceOutput {
@@ -49,6 +67,18 @@ export class State extends EventTarget {
       playTone: () => {
         if (this.state.kind == "ready") {
           this.stateChanged({kind: "calling", name: "playTone"});
+        }
+      },
+
+      runMotor: (port: MotorPort) => {
+        if (this.state.kind == "ready") {
+          this.stateChanged({kind: "calling", name: "runMotor", port: port});
+        }
+      },
+
+      idleMotor: (port: MotorPort) => {
+        if (this.state.kind == "ready") {
+          this.stateChanged({kind: "calling", name: "idleMotor", port: port});
         }
       }
     }
@@ -95,6 +125,9 @@ export class State extends EventTarget {
 
   private log(message: string) {
     this.output.push(message);
+    if (this.output.length > 20) {
+      this.output = this.output.slice(-20);
+    }
     this.render();
   }
 
