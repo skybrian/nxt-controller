@@ -1,10 +1,10 @@
 import {h} from "preact";
-import {AppProps} from "./state";
+import {AppProps, MotorPorts} from "./state";
 import {TabView} from "./tabs";
 
 export const Connect = (props: {onClick: (_) => void}) => {
   return <div class="connect-view">
-      <button onClick={props.onClick}>Connect</button>
+      <button class="pure-button pure-button-primary" onClick={props.onClick}>Connect</button>
    </div>
 }
 
@@ -13,12 +13,16 @@ export const App = (props: AppProps) => {
     <LogView log={props.log}/>
     <div>
       <div>
-        <button onClick={props.playTone} disabled={props.deviceState.kind != "ready"}>Play Tone</button>
+        <button class="pure-button" onClick={props.playTone} disabled={props.deviceState.kind != "ready"}>Play Tone</button>
       </div>
       <div>
-        Motor A:
-          <button onClick={(e) => props.runMotor("a")} disabled={props.deviceState.kind != "ready"}>Run</button>
-          <button onClick={(e) => props.idleMotor("a")} disabled={props.deviceState.kind != "ready"}>Idle</button>
+        {MotorPorts.map((port) =>
+          <div class="motor-row">
+            Motor {port}: <button class="pure-button" onClick={(e) => props.runMotor(port)} disabled={props.deviceState.kind != "ready"}
+            >Run</button> <button class="pure-button" onClick={(e) => props.idleMotor(port)} disabled={props.deviceState.kind != "ready"}
+            >Idle</button>
+          </div>
+        )}
       </div>
     </div>
   </TabView>

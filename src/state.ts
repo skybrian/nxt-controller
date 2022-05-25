@@ -3,7 +3,13 @@ export interface PlayTone {
   name: "playTone"
 }
 
-export type MotorPort = "a" | "b" | "c";
+export enum MotorPort {
+  A = "A",
+  B = "B",
+  C = "C"
+}
+
+export const MotorPorts = [MotorPort.A, MotorPort.B, MotorPort.C];
 
 export interface RunMotor {
   kind: "calling",

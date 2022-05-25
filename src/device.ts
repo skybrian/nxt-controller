@@ -1,4 +1,4 @@
-import { DeviceCall, DeviceOutput } from './state';
+import { DeviceCall, DeviceOutput, MotorPort } from './state';
 
 export interface FirmwareVersion {
   protocol: { major: number, minor: number };
@@ -6,7 +6,7 @@ export interface FirmwareVersion {
 }
 
 export interface OutputState {
-  port: "a" | "b" | "c",
+  port: MotorPort,
   power: number,
   mode: number,
   regMode: number,
@@ -91,8 +91,8 @@ export class Device {
     }
   }
 
-  private async getOutputState(port: "a" | "b" | "c"): Promise<OutputState> {
-    const command = new Uint8Array([0x00, 0x06, {"a": 0, "b": 1, "c": 2}[port]]);
+  private async getOutputState(port: MotorPort): Promise<OutputState> {
+    const command = new Uint8Array([0x00, 0x06, {"A": 0, "B": 1, "C": 2}[port]]);
     try {
       const result = await this.callCommand(command);
       if (result.length != 25) throw `unexpected response length for getOutputState: ${result.length}`;
@@ -101,7 +101,7 @@ export class Device {
       if (result[2] != 0) throw "got error result";
       this.out.commandDone();
 
-      const port = {0: "a", 1: "b", 2: "c"}[result[3]] as "a" | "b" | "c";
+      const port = {0: "A", 1: "B", 2: "C"}[result[3]] as MotorPort;
       return {
         port: port,
         power: result[4],
@@ -132,7 +132,7 @@ export class Device {
     }
   }
 
-  private async setOutputState(port: "a" | "b" | "c" | "all", mode: "on" | "coast",
+  private async setOutputState(port: MotorPort | "all", mode: "on" | "coast",
     options?: {power?: number}): Promise<void> {
 
     const power = options?.power ?? 0;
@@ -140,7 +140,7 @@ export class Device {
 
     const command = new Uint8Array([
       0x00, 0x04,
-      {a: 0, b: 1, c: 2, all: 0xff}[port],
+      {A: 0, B: 1, C: 2, all: 0xff}[port],
       power,
       {"on": 0x07, "coast": 0}[mode],
       0x01, // regulate power to try to match speed

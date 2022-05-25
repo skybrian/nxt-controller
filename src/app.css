@@ -51,3 +51,8 @@ body {
 .right-of-tabs {
   margin-left: auto;
 }
+
+.motor-row {
+  margin-top: 1ex;
+  margin-bottom: 1ex;
+}
