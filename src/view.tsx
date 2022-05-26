@@ -12,6 +12,9 @@ export const Connect = (props: {onClick: (_) => void}) => {
       Before using it, you will need to turn on the NXT Brick, turn on Bluetooth, and pair it with your
       computer. Then press "Connect" and choose the serial port with "NXT" in its name.
     </p>
+    <p>
+      The source is <a href="https://github.com/skybrian/nxt-controller">on Github.</a>
+    </p>
     <div>
       <button class="pure-button pure-button-primary" onClick={props.onClick}>Connect</button>
     </div>
