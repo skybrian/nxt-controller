@@ -88,7 +88,6 @@ export class Device {
         const state = await this.getOutputState(port);
         this.out.motorChanged({
           port: port,
-          power: state.power,
           position: state.tachoCount,
         });
         await new Promise(r => setTimeout(r, 50));

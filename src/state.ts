@@ -38,7 +38,6 @@ export type Tab = "Buttons" | "Log";
 
 export interface MotorReading {
   port: MotorPort,
-  power: number,
   position: number
 }
 
@@ -104,7 +103,6 @@ export class State extends EventTarget {
     return {
       motorChanged: (reading: MotorReading) => {
         this.motorStates[reading.port] = reading;
-        this.pushLog(`read motor ${reading.port}`)
         this.render();
       },
       ready: () => {
