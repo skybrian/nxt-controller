@@ -9,7 +9,7 @@ export enum MotorPort {
   C = "C"
 }
 
-export const MotorPorts = [MotorPort.A, MotorPort.B, MotorPort.C];
+export const MotorPorts = [MotorPort.A, MotorPort.B, MotorPort.C] as const;
 
 export interface RunMotor {
   kind: "calling",
@@ -36,10 +36,17 @@ export type DeviceState = { kind: "start" }
 
 export type Tab = "Buttons" | "Log";
 
+export interface MotorReading {
+  port: MotorPort,
+  power: number,
+  position: number
+}
+
 export interface AppProps {
   deviceState: DeviceState,
   tab: Tab,
-  log: string[]
+  log: string[],
+  motorStates: { [key in MotorPort]: MotorReading },
 
   chooseTab: (tab: Tab) => void;
   playTone: () => void;
@@ -48,7 +55,8 @@ export interface AppProps {
 }
 
 export interface DeviceOutput {
-  commandDone(): void;
+  motorChanged(reading: MotorReading): void;
+  ready(): void;
   deviceClosed(): void;
   deviceCrashed(message: any): void;
   log(line: string): void;
@@ -57,13 +65,15 @@ export interface DeviceOutput {
 export class State extends EventTarget {
   private state = { kind: "start" } as DeviceState;
   private tab = "Log" as Tab;
-  private output = [] as string[];
+  private log = [] as string[];
+  private motorStates = {A: null, B: null, C: null} as { [key in MotorPort]: MotorReading | null }
 
   get props(): AppProps {
     return {
       deviceState: this.state,
       tab: this.tab,
-      log: this.output,
+      log: this.log,
+      motorStates: this.motorStates,
 
       chooseTab: (tab: Tab) => {
         this.tab = tab;
@@ -92,7 +102,12 @@ export class State extends EventTarget {
 
   get deviceOutput(): DeviceOutput {
     return {
-      commandDone: () => {
+      motorChanged: (reading: MotorReading) => {
+        this.motorStates[reading.port] = reading;
+        this.pushLog(`read motor ${reading.port}`)
+        this.render();
+      },
+      ready: () => {
         this.stateChanged({kind: "ready"});
       },
       deviceClosed: (): void => {
@@ -102,7 +117,7 @@ export class State extends EventTarget {
         this.stateChanged({kind: "gone"}, {message: message})
       },
       log: (line: string): void => {
-        this.log(line);
+        this.pushLog(line);
       }
     }
   }
@@ -121,18 +136,18 @@ export class State extends EventTarget {
         break;
       case "calling":
         this.dispatchEvent(new CustomEvent("call", {detail: state}));
-        this.log(`*** calling ${state.name} ***`);
+        this.pushLog(`*** calling ${state.name} ***`);
         return;
     }
 
     const message = options?.message ?? state.kind;
-    this.log(`*** ${message} ***`)
+    this.pushLog(`*** ${message} ***`)
   }
 
-  private log(message: string) {
-    this.output.push(message);
-    if (this.output.length > 20) {
-      this.output = this.output.slice(-20);
+  private pushLog(message: string) {
+    this.log.push(message);
+    if (this.log.length > 20) {
+      this.log = this.log.slice(-20);
     }
     this.render();
   }

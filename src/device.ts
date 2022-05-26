@@ -1,4 +1,4 @@
-import { DeviceCall, DeviceOutput, MotorPort } from './state';
+import { DeviceCall, DeviceOutput, MotorPort, MotorPorts } from './state';
 
 export interface FirmwareVersion {
   protocol: { major: number, minor: number };
@@ -10,13 +10,15 @@ export interface OutputState {
   power: number,
   mode: number,
   regMode: number,
-  runState: number
+  runState: number,
+  tachoCount: number
 }
 
 export class Device {
   private tasks = [] as Promise<any>[];
   private readers = [] as ReadableStreamDefaultReader[];
   private gotPacket = null as (packet: Uint8Array) => void;
+  private pendingCall = Promise.resolve(new Uint8Array(0));
 
   constructor(private port: SerialPort, private out: DeviceOutput) {}
 
@@ -31,7 +33,10 @@ export class Device {
         this.tasks.push(this.readPackets(this.port.readable));
 
         const versions = await this.getFirmwareVersion();
+        this.tasks.push(this.readMotors());
+
         this.out.log(`firmware versions: ${JSON.stringify(versions)}`);
+        this.out.ready();
 
       } catch (e) {
         this.out.deviceCrashed(e);
@@ -39,18 +44,22 @@ export class Device {
     })();
   }
 
-  call(call: DeviceCall): void {
+  startCall(call: DeviceCall): void {
+    let result = null as Promise<void>;
     switch (call.name) {
       case "playTone":
-        this.playTone(256, 100);
+        result = this.playTone(256, 100);
         break;
       case "runMotor":
-        this.setOutputState(call.port, "on", {power: 20});
+        result = this.setOutputState(call.port, "on", {power: 20});
         break;
       case "idleMotor":
-        this.setOutputState(call.port, "coast");
+        result = this.setOutputState(call.port, "coast");
         break;
+      default:
+        throw "unknown call";
     }
+    result.finally(this.out.ready);
   }
 
   private async readPackets(stream: ReadableStream) {
@@ -73,6 +82,20 @@ export class Device {
     }
   }
 
+  private async readMotors() {
+    while (true) {
+      for (let port of MotorPorts) {
+        const state = await this.getOutputState(port);
+        this.out.motorChanged({
+          port: port,
+          power: state.power,
+          position: state.tachoCount,
+        });
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+  }
+
   private async getFirmwareVersion(): Promise<FirmwareVersion> {
     const command = new Uint8Array([0x01, 0x88]);
     try {
@@ -81,7 +104,6 @@ export class Device {
       if (result[0] != 0x02) throw "not a response packet";
       if (result[1] != 0x88) throw "not a response packet to getFirmewareVersion";
       if (result[2] != 0) throw "got error result";
-      this.out.commandDone();
       return {
         protocol: {major: result[0], minor: result[3]},
         firmware: {major: result[6], minor: result[5]}
@@ -99,7 +121,6 @@ export class Device {
       if (result[0] != 0x02) throw "not a response packet";
       if (result[1] != 0x06) throw "not a response packet to getFirmewareVersion";
       if (result[2] != 0) throw "got error result";
-      this.out.commandDone();
 
       const port = {0: "A", 1: "B", 2: "C"}[result[3]] as MotorPort;
       return {
@@ -107,7 +128,8 @@ export class Device {
         power: result[4],
         mode: result[5],
         regMode: result[6],
-        runState: result[8]
+        runState: result[8],
+        tachoCount: result[13] + (result[14] << 8) + (result[15] << 16) + (result[16] << 24)
       };
     } catch (e) {
       this.out.deviceCrashed(e);
@@ -126,7 +148,6 @@ export class Device {
     try {
       const result = await this.callCommand(command);
       checkResult(result, 0x03);
-      this.out.commandDone();
     } catch (e) {
       this.out.deviceCrashed(e);
     }
@@ -152,31 +173,40 @@ export class Device {
     try {
       const result = await this.callCommand(command);
       checkResult(result, 0x04);
-
-      if (port != "all") {
-        const state = await this.getOutputState(port);
-        this.out.log(JSON.stringify(state));
-      }
-
-      //this.out.commandDone();
     } catch (e) {
       this.out.deviceCrashed(e);
     }
   }
 
   private async callCommand(command: Uint8Array): Promise<Uint8Array> {
-    const writer = this.port.writable.getWriter();
-    try {
-      await writeBluetoothPacket(command, writer);
-    } finally {
-      writer.releaseLock();
+
+    const call = async (): Promise<Uint8Array> => {
+      const writer = this.port.writable.getWriter();
+      try {
+        await writeBluetoothPacket(command, writer);
+      } finally {
+        writer.releaseLock();
+      }
+
+      return new Promise<Uint8Array>((resolve) => {
+        this.gotPacket = (packet) => {
+          resolve(packet);
+        }
+      });
     }
 
-    return new Promise<Uint8Array>((resolve) => {
-      this.gotPacket = (packet) => {
-        resolve(packet);
+    const pending = this.pendingCall;
+
+    const callAfter = async () => {
+      try {
+        await pending;
+      } finally {
+        return await call();
       }
-    });
+    }
+
+    this.pendingCall = callAfter();
+    return this.pendingCall;
   }
 }
 
